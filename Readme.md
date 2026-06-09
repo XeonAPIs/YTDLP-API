@@ -90,6 +90,16 @@ The app auto-detects whether real cookies are present; it runs fine without them
 
 > ⚠️ **Never commit `cookies.txt` to a public repo.**
 
+### Supplying cookies on Render
+
+When deploying on Render you can provide cookies securely via an environment secret named `COOKIES_CONTENT`. The container entrypoint will write this value to `cookies.txt` at startup so the app can use it.
+
+1. Export cookies in Netscape format using a browser extension.
+2. In the Render dashboard, add a secret env var `COOKIES_CONTENT` with the full contents of the exported file.
+3. Deploy the service; the container will create `cookies.txt` from the secret at boot.
+
+This avoids committing credentials to the repo and lets the app use the cookies for restricted content.
+
 ---
 
 ## Endpoints

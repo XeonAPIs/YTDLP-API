@@ -16,8 +16,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 RUN mkdir -p downloads
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # BASE_URL should be set at runtime, e.g. https://myapp.onrender.com
 ENV PORT=5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "app:app"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
