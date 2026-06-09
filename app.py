@@ -67,7 +67,7 @@ def download_audio():
 
     ydl_opts = base_ydl_opts()
     ydl_opts.update({
-        'format':  'bestaudio/best',
+        'format':  'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
         'outtmpl': tmp_template,
     })
 
@@ -123,9 +123,15 @@ def download_video():
 
     ydl_opts = base_ydl_opts()
     ydl_opts.update({
-        'format':  f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best',
+        'format': (
+            f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]'
+            f'/bestvideo[height<={quality}]+bestaudio'
+            f'/bestvideo[ext=mp4]+bestaudio[ext=m4a]'
+            f'/bestvideo+bestaudio'
+            f'/best[ext=mp4]'
+            f'/best'
+        ),
         'outtmpl': tmp_template,
-        # merge into a single mp4 (requires ffmpeg)
         'merge_output_format': 'mp4',
     })
 
