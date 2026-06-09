@@ -1,7 +1,11 @@
 FROM python:3.11-slim
 
-# ffmpeg is required for merging video+audio streams
-RUN apt-get update && apt-get install -y ffmpeg --no-install-recommends \
+# Install Node.js (required by yt-dlp EJS solver) and ffmpeg for merging
+# Uses NodeSource setup script to get a modern Node release
+RUN apt-get update \
+    && apt-get install -y curl ca-certificates gnupg --no-install-recommends \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs ffmpeg --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

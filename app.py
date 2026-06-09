@@ -104,9 +104,50 @@ def download_audio():
         for p in [output_path]:
             if os.path.exists(p):
                 os.remove(p)
+
         error_msg = str(e)
-        if 'Signature solving failed' in error_msg or 'n challenge solving failed' in error_msg:
-            return jsonify({'error': 'Unable to download: Video format is protected or unavailable. Please try another video or ensure JavaScript runtime is installed.'}), 400
+        fallback_attempted = False
+
+        if ('Requested format' in error_msg or 'Only images are available' in error_msg
+                or 'Signature solving failed' in error_msg or 'challenge solving failed' in error_msg):
+            fallback_attempted = True
+            fallback_opts = ydl_opts.copy()
+            fallback_opts['format'] = 'bestaudio/best'
+
+            try:
+                with YoutubeDL(fallback_opts) as ydl:
+                    info_dict = ydl.extract_info(search_query, download=True)
+
+                    # ytsearch wraps results in a list; unwrap it
+                    if 'entries' in info_dict:
+                        info_dict = info_dict['entries'][0]
+
+                    title     = info_dict.get('title', 'unknown')
+                    file_path = ydl.prepare_filename(info_dict)
+
+                    # Convert to MP3 with pydub
+                    audio = AudioSegment.from_file(file_path)
+                    audio.export(output_path, format='mp3', bitrate='192k')
+
+                    # Remove the raw downloaded file
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+
+                return jsonify({
+                    'download_url': f'{URL}/download/{output_filename}',
+                    'name':         title,
+                    'url':          url or search_query,
+                }), 200
+
+            except Exception as e2:
+                error_msg = str(e2)
+
+        if fallback_attempted and ('Signature solving failed' in error_msg or 'challenge solving failed' in error_msg):
+            return jsonify({'error': 'Unable to download: Signature solving failed. Install Node.js or another supported JS runtime and try again.'}), 400
+
+        if 'Requested format' in error_msg or 'Only images are available' in error_msg:
+            return jsonify({'error': 'Requested format unavailable. This can happen when signature solving fails; try installing Node.js or try a different video.'}), 400
+
         return jsonify({'error': error_msg}), 500
 
 
@@ -123,6 +164,9 @@ def download_video():
 
     search_query = f"ytsearch:{name}" if name else url
 
+    if not quality.isdigit():
+        quality = '1080'
+
     output_filename = secure_filename(f"{uuid.uuid4()}.mp4")
     output_path     = os.path.join(DOWNLOAD_FOLDER, output_filename)
     tmp_template    = os.path.join(DOWNLOAD_FOLDER, f"tmp_{uuid.uuid4()}.%(ext)s")
@@ -130,10 +174,11 @@ def download_video():
     ydl_opts = base_ydl_opts()
     ydl_opts.update({
         'format': (
-            f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]'
-            f'/bestvideo[height<={quality}]+bestaudio'
+            f'bestvideo[height<=?{quality}][ext=mp4]+bestaudio[ext=m4a]'
+            f'/bestvideo[height<=?{quality}]+bestaudio'
             f'/bestvideo[ext=mp4]+bestaudio[ext=m4a]'
             f'/bestvideo+bestaudio'
+            f'/best[height<=?{quality}]'
             f'/best[ext=mp4]'
             f'/best'
         ),
@@ -141,21 +186,18 @@ def download_video():
         'merge_output_format': 'mp4',
     })
 
-    try:
-        with YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(search_query, download=True)
+    def _finalize_and_respond(ydl, info_dict):
+        if 'entries' in info_dict:
+            info_dict = info_dict['entries'][0]
 
-            if 'entries' in info_dict:
-                info_dict = info_dict['entries'][0]
+        title     = info_dict.get('title', 'unknown')
+        file_path = ydl.prepare_filename(info_dict)
 
-            title     = info_dict.get('title', 'unknown')
-            file_path = ydl.prepare_filename(info_dict)
+        # yt-dlp may write .mp4 directly after merging
+        if not os.path.exists(file_path):
+            file_path = file_path.rsplit('.', 1)[0] + '.mp4'
 
-            # yt-dlp may write .mp4 directly after merging
-            if not os.path.exists(file_path):
-                file_path = file_path.rsplit('.', 1)[0] + '.mp4'
-
-            os.rename(file_path, output_path)
+        os.rename(file_path, output_path)
 
         return jsonify({
             'download_url': f'{URL}/download/{output_filename}',
@@ -163,14 +205,39 @@ def download_video():
             'url':          url or search_query,
         }), 200
 
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(search_query, download=True)
+            return _finalize_and_respond(ydl, info_dict)
+
     except Exception as e:
+        # Try a relaxed fallback (no codec/extension/height constraints)
+        error_msg = str(e)
+        fallback_attempted = False
+
+        if ('Requested format' in error_msg or 'Only images are available' in error_msg
+                or 'Signature solving failed' in error_msg or 'challenge solving failed' in error_msg):
+            fallback_attempted = True
+            fallback_opts = ydl_opts.copy()
+            fallback_opts['format'] = 'bestvideo+bestaudio/best'
+
+            try:
+                with YoutubeDL(fallback_opts) as ydl:
+                    info_dict = ydl.extract_info(search_query, download=True)
+                    return _finalize_and_respond(ydl, info_dict)
+            except Exception as e2:
+                error_msg = str(e2)
+
+        # Clean up any partial output
         if os.path.exists(output_path):
             os.remove(output_path)
-        error_msg = str(e)
-        if 'Signature solving failed' in error_msg or 'n challenge solving failed' in error_msg:
-            return jsonify({'error': 'Unable to download: Video format is protected or unavailable. Please try another video or ensure JavaScript runtime is installed.'}), 400
+
+        if fallback_attempted and ('Signature solving failed' in error_msg or 'challenge solving failed' in error_msg):
+            return jsonify({'error': 'Unable to download: Signature solving failed. Install Node.js or another supported JS runtime and try again.'}), 400
+
         if 'Requested format' in error_msg or 'Only images are available' in error_msg:
-            return jsonify({'error': 'Video format not available for download. Try a different quality or video.'}), 400
+            return jsonify({'error': 'Video format not available for download. Try a different quality such as 720, 480, or 360.'}), 400
+
         return jsonify({'error': error_msg}), 500
 
 
