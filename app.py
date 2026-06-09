@@ -36,6 +36,9 @@ def base_ydl_opts():
         'noplaylist': True,          # never accidentally grab a whole playlist
         'quiet': True,
         'no_warnings': False,
+        'socket_timeout': 30,
+        'retries': 3,
+        'fragment_retries': 3,
     }
     if cookies_available():
         opts['cookiefile'] = COOKIES_FILE
@@ -101,7 +104,10 @@ def download_audio():
         for p in [output_path]:
             if os.path.exists(p):
                 os.remove(p)
-        return jsonify({'error': str(e)}), 500
+        error_msg = str(e)
+        if 'Signature solving failed' in error_msg or 'n challenge solving failed' in error_msg:
+            return jsonify({'error': 'Unable to download: Video format is protected or unavailable. Please try another video or ensure JavaScript runtime is installed.'}), 400
+        return jsonify({'error': error_msg}), 500
 
 
 # ── Video ─────────────────────────────────────────────────────────────────────
@@ -160,7 +166,12 @@ def download_video():
     except Exception as e:
         if os.path.exists(output_path):
             os.remove(output_path)
-        return jsonify({'error': str(e)}), 500
+        error_msg = str(e)
+        if 'Signature solving failed' in error_msg or 'n challenge solving failed' in error_msg:
+            return jsonify({'error': 'Unable to download: Video format is protected or unavailable. Please try another video or ensure JavaScript runtime is installed.'}), 400
+        if 'Requested format' in error_msg or 'Only images are available' in error_msg:
+            return jsonify({'error': 'Video format not available for download. Try a different quality or video.'}), 400
+        return jsonify({'error': error_msg}), 500
 
 
 # ── Info (no download) ────────────────────────────────────────────────────────
@@ -185,7 +196,10 @@ def video_info():
                 'thumbnail': info.get('thumbnail'),
             }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        error_msg = str(e)
+        if 'Signature solving failed' in error_msg or 'n challenge solving failed' in error_msg:
+            return jsonify({'error': 'Unable to fetch info: Video format is protected. JavaScript runtime may be needed.'}), 400
+        return jsonify({'error': error_msg}), 500
 
 
 # ── Serve downloaded files ────────────────────────────────────────────────────

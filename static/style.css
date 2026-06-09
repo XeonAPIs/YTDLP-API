@@ -4,7 +4,7 @@ body {
   align-items: center;
   height: 100vh;
   margin: 0;
-  background:url(background.png);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   background-size: cover;
-/* Background color set to blank (transparent) */
+  background-attachment: fixed;
 }

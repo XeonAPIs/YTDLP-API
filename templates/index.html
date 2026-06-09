@@ -3,15 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="{{ url_for('static', filename='back.png') }}" type="image/png">
-    <title>DOT-007❤️</title>
+    <title>YTDLP API</title>
     <style>
-
+        .page {
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+            max-width: 560px;
+            margin: 48px auto;
+            padding: 28px 32px;
+        }
+        h1 {
+            margin: 0 0 18px;
+            font-size: 1.9rem;
+            color: #2d2d60;
+        }
+        p {
+            margin: 0 0 20px;
+            color: #4d4d70;
+            line-height: 1.5;
+        }
+        label {
+            display: block;
+            margin: 14px 0 6px;
+            color: #333;
+            font-weight: 600;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .radio-group {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin: 12px 0 0;
+            flex-wrap: wrap;
+        }
+        .radio-group label {
+            margin: 0;
+            font-weight: 500;
+        }
+        button {
+            margin-top: 22px;
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        .note,
+        .status,
+        .result {
+            margin-top: 18px;
+            font-size: 0.95rem;
+            color: #334155;
+        }
+        .result a {
+            color: #4f46e5;
+            word-break: break-all;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    
+    <div class="page">
+        <h1>YTDLP API</h1>
+        <p>Enter a YouTube URL or search term, choose audio or video, and select video quality before downloading.</p>
+
+        <form id="download-form">
+            <label for="source">YouTube URL or search term</label>
+            <input id="source" type="text" placeholder="https://youtu.be/... or song name" required>
+
+            <div class="radio-group">
+                <label><input type="radio" name="mode" id="mode-audio" value="audio" checked> Audio</label>
+                <label><input type="radio" name="mode" id="mode-video" value="video"> Video</label>
+            </div>
+
+            <div id="quality-field" class="hidden">
+                <label for="quality">Video quality</label>
+                <select id="quality">
+                    <option value="1080">1080p</option>
+                    <option value="720">720p</option>
+                    <option value="480">480p</option>
+                    <option value="360">360p</option>
+                </select>
+            </div>
+
+            <button type="submit">Download</button>
+        </form>
+
+        <div class="status" id="status"></div>
+        <div class="result" id="result"></div>
+        <p class="note">If you enter text instead of a URL, the app will search YouTube for the best match.</p>
+    </div>
+
+    <script>
+        const form = document.getElementById('download-form');
+        const qualityField = document.getElementById('quality-field');
+        const modeAudio = document.getElementById('mode-audio');
+        const modeVideo = document.getElementById('mode-video');
+        const statusEl = document.getElementById('status');
+        const resultEl = document.getElementById('result');
+
+        function updateQualityVisibility() {
+            qualityField.classList.toggle('hidden', modeAudio.checked);
+        }
+
+        modeAudio.addEventListener('change', updateQualityVisibility);
+        modeVideo.addEventListener('change', updateQualityVisibility);
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            statusEl.textContent = 'Downloading... please wait.';
+            resultEl.textContent = '';
+
+            const source = document.getElementById('source').value.trim();
+            const endpoint = modeVideo.checked ? 'video' : 'audio';
+            const params = new URLSearchParams();
+
+            if (!source) {
+                statusEl.textContent = 'Please provide a URL or search term.';
+                return;
+            }
+
+            if (/^https?:\/\//i.test(source)) {
+                params.set('url', source);
+            } else {
+                params.set('name', source);
+            }
+
+            if (endpoint === 'video') {
+                params.set('quality', document.getElementById('quality').value);
+            }
+
+            try {
+                const response = await fetch(`/${endpoint}?${params.toString()}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Download failed');
+                }
+
+                statusEl.textContent = 'Download ready.';
+                resultEl.innerHTML = `
+                    <div><strong>Title:</strong> ${data.name || data.title || 'Unknown'}</div>
+                    <div><strong>Download URL:</strong> <a href="${data.download_url}" target="_blank">${data.download_url}</a></div>
+                `;
+            } catch (error) {
+                statusEl.textContent = 'Error: ' + error.message;
+                resultEl.textContent = '';
+            }
+        });
+
+        updateQualityVisibility();
+    </script>
 </body>
 </html>

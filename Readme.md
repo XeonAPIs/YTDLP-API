@@ -17,6 +17,9 @@ A Flask REST API that wraps **yt-dlp** to download audio and video from YouTube 
 | 7 | No `/info` endpoint | Added `/info?url=` for metadata without downloading |
 | 8 | No quality param for video | Added optional `?quality=720` (default 1080) |
 | 9 | cookies.txt placeholder was confusing | Clear instructions + auto-detection logic |
+| 10 | Missing background image causing UI issues | Removed missing image refs; added gradient background |
+| 11 | YouTube signature solving errors | Added better error handling & retry logic; improved error messages |
+| 12 | No media format fallbacks | Added socket timeout, retries, and fragment retry logic |
 
 ---
 
@@ -44,6 +47,34 @@ docker run -p 5000:5000 \
 
 Set the environment variable `BASE_URL` to your public URL.  
 The `render.yaml` already references this.
+
+---
+
+## 🔧 Requirements & System Dependencies
+
+### ffmpeg
+
+**Required for video merging.** Install:
+
+- **Windows:** `choco install ffmpeg` (via Chocolatey) or download from [ffmpeg.org](https://ffmpeg.org)
+- **macOS:** `brew install ffmpeg`
+- **Linux:** `sudo apt install ffmpeg` (Debian/Ubuntu)
+
+### Node.js (for YouTube signature solving)
+
+**Required to download newer YouTube videos.** yt-dlp uses Node.js to solve YouTube's signature challenges.
+
+Install:
+
+- **Windows:** Download from [nodejs.org](https://nodejs.org) or `choco install nodejs`
+- **macOS:** `brew install node`
+- **Linux:** `sudo apt install nodejs npm`
+
+**Verify installation:**
+```bash
+ffmpeg -version
+node --version
+```
 
 ---
 
@@ -106,3 +137,5 @@ Returns metadata **without** downloading.
 ### `GET /download/<filename>`
 
 Serves a previously downloaded file.
+
+> Open `/` in your browser to use the built-in download form. The video form includes a quality selector for `1080`, `720`, `480`, and `360`.
