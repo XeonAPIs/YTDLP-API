@@ -10,7 +10,7 @@ DOWNLOAD_FOLDER = 'downloads'
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
 
 # ── Change this to your actual domain, e.g. https://myapp.onrender.com ──
-URL = os.environ.get('BASE_URL', 'http://localhost:5000')
+URL = os.environ.get('BASE_URL', 'https://ytdlp-api-teoq.onrender.com')
 
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), 'cookies.txt')
 
