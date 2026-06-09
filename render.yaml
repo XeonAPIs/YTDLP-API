@@ -1,0 +1,10 @@
+# render.yaml
+
+services:
+  - name: ytdlp4u
+    type: web
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
+    autoDeploy: true
+    plan: free
